@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>عالم كوني — منصة كون</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#050010;color:#f1e8ff;font-family:'Cairo',sans-serif;direction:rtl;min-height:100vh;overflow-x:hidden}
+    canvas{display:block}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// 🔥 Firebase
+const FCFG={apiKey:"AIzaSyCtaBABFyIdzZOHNY0awe0gYFxraQqiDy0",authDomain:"kawn-platform.firebaseapp.com",projectId:"kawn-platform",storageBucket:"kawn-platform.firebasestorage.app",messagingSenderId:"755469630864",appId:"1:755469630864:web:1c45298d5297588c854715"};
+if(!firebase.apps.length) firebase.initializeApp(FCFG);
+const auth=firebase.auth();
+const db=firebase.firestore();
+const FS=firebase.firestore.FieldValue;
+
+// ══════════════════════════════════════════════
+//  ثوابت اللعبة
+// ══════════════════════════════════════════════
+const PLANETS=[
+  {id:"p1",name:"كوكب البداية",x:0.15,y:0.5,r:55,color:"#4ade80",glow:"rgba(74,222,128,.4)",unlock:0,   emoji:"🌿",desc:"أول خطواتك في عالم كوني"},
+  {id:"p2",name:"كوكب المعرفة",x:0.35,y:0.3,r:48,color:"#60a5fa",glow:"rgba(96,165,250,.4)",unlock:50,  emoji:"📘",desc:"اكتسب المعرفة وتحدّ نفسك"},
+  {id:"p3",name:"كوكب الطاقة",x:0.55,y:0.6,r:52,color:"#f59e0b",glow:"rgba(245,158,11,.4)",unlock:150, emoji:"⚡",desc:"سخّر طاقتك للوصول أعلى"},
+  {id:"p4",name:"كوكب الأبطال",x:0.75,y:0.35,r:60,color:"#a855f7",glow:"rgba(168,85,247,.4)",unlock:300,emoji:"🏆",desc:"هنا يسكن أبطال الفصل"},
+  {id:"p5",name:"كوكب الأسطورة",x:0.88,y:0.65,r:45,color:"#f43f5e",glow:"rgba(244,63,94,.4)",unlock:500,emoji:"👾",desc:"الأسطورة تسكن هنا"},
+];
+
+const SKINS={
+  body:[
+    {id:"b0",name:"كلاسيك",color:"#7c3aed",price:0,      emoji:"🤖"},
+    {id:"b1",name:"ذهبي",  color:"#f59e0b",price:30,     emoji:"🤖"},
+    {id:"b2",name:"فضي",   color:"#94a3b8",price:50,     emoji:"🤖"},
+    {id:"b3",name:"ناري",  color:"#ef4444",price:80,     emoji:"🤖"},
+    {id:"b4",name:"سماوي", color:"#06b6d4",price:100,    emoji:"🤖"},
+  ],
+  hat:[
+    {id:"h0",name:"بدون",   emoji:"",     price:0},
+    {id:"h1",name:"تاج",    emoji:"👑",   price:40},
+    {id:"h2",name:"خوذة",   emoji:"⛑",   price:60},
+    {id:"h3",name:"قبعة",   emoji:"🎩",   price:80},
+    {id:"h4",name:"نجمة",   emoji:"⭐",   price:50},
+  ],
+  effect:[
+    {id:"e0",name:"بدون",    emoji:"",    price:0},
+    {id:"e1",name:"شرارات",  emoji:"✨",  price:60},
+    {id:"e2",name:"نار",     emoji:"🔥",  price:80},
+    {id:"e3",name:"برق",     emoji:"⚡",  price:100},
+    {id:"e4",name:"قلوب",    emoji:"💜",  price:70},
+  ],
+};
+
+const CHALLENGES=[
+  {id:"c1",q:"ما هو أكبر كوكب في المجموعة الشمسية؟",opts:["المشتري","زحل","الأرض","نبتون"],ans:0,pts:15},
+  {id:"c2",q:"كم تبلغ سرعة الضوء تقريباً؟",opts:["300,000 كم/ث","150,000 كم/ث","500,000 كم/ث","100,000 كم/ث"],ans:0,pts:15},
+  {id:"c3",q:"ما الغاز الأكثر وفرة في الغلاف الجوي للأرض؟",opts:["النيتروجين","الأكسجين","ثاني أكسيد الكربون","الهيليوم"],ans:0,pts:15},
+  {id:"c4",q:"كم عدد أضلاع المثلث؟",opts:["3","4","5","6"],ans:0,pts:10},
+  {id:"c5",q:"ما العضو المسؤول عن ضخ الدم في جسم الإنسان؟",opts:["القلب","الكبد","الرئة","الكلية"],ans:0,pts:15},
+  {id:"c6",q:"ما الوحدة الأساسية للكهرباء؟",opts:["الأمبير","الفولت","الوات","الأوم"],ans:0,pts:15},
+  {id:"c7",q:"كم يبلغ عدد عظام جسم الإنسان البالغ؟",opts:["206","306","106","156"],ans:0,pts:20},
+  {id:"c8",q:"ما أسرع حيوان بري؟",opts:["الفهد","الأسد","الغزال","الحصان"],ans:0,pts:10},
+];
+
+// ══════════════════════════════════════════════
+//  حالة اللعبة
+// ══════════════════════════════════════════════
+let state={
+  screen:"login", // login | map | planet | shop | challenge | hall | profile
+  user:null,
+  userData:null,
+  points:0,
+  skin:{body:"b0",hat:"h0",effect:"e0"},
+  ownedSkins:{body:["b0"],hat:["h0"],effect:["e0"]},
+  classmates:[],
+  selectedPlanet:null,
+  challenge:null,
+  challengeAns:null,
+  challengeDone:false,
+  msg:"",
+  msgType:"success",
+  stars:[],
+  robotY:0,
+  robotDir:1,
+  tick:0,
+  notifications:[],
+};
+
+// ══════════════════════════════════════════════
+//  Canvas Engine
+// ══════════════════════════════════════════════
+const root=document.getElementById("root");
+let canvas,ctx,W,H,animId;
+
+function initCanvas(){
+  root.innerHTML="";
+  canvas=document.createElement("canvas");
+  canvas.style.cssText="position:fixed;top:0;left:0;width:100%;height:100%;cursor:pointer";
+  root.appendChild(canvas);
+  resize();
+  window.addEventListener("resize",resize);
+  canvas.addEventListener("click",handleClick);
+  canvas.addEventListener("touchstart",e=>{e.preventDefault();handleClick(e.touches[0]);},{passive:false});
+  genStars();
+  if(animId) cancelAnimationFrame(animId);
+  loop();
+}
+
+function resize(){
+  W=canvas.width=window.innerWidth;
+  H=canvas.height=window.innerHeight;
+}
+
+function genStars(){
+  state.stars=[];
+  for(let i=0;i<200;i++){
+    state.stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.5+.3,b:Math.random()});
+  }
+}
+
+function loop(){
+  state.tick++;
+  state.robotY=Math.sin(state.tick*.05)*8;
+  draw();
+  animId=requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════════════════════
+//  رسم النجوم
+// ══════════════════════════════════════════════
+function drawStars(){
+  ctx.fillStyle="#050010";
+  ctx.fillRect(0,0,W,H);
+  state.stars.forEach(s=>{
+    const alpha=.4+.6*Math.abs(Math.sin(state.tick*.02+s.b*10));
+    ctx.beginPath();
+    ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${alpha})`;
+    ctx.fill();
+  });
+}
+
+// ══════════════════════════════════════════════
+//  رسم الروبوت
+// ══════════════════════════════════════════════
+function drawRobot(x,y,size,skinBody,skinHat,skinEffect,animated=true){
+  const off=animated?state.robotY:0;
+  const bodyColor=SKINS.body.find(b=>b.id===skinBody)?.color||"#7c3aed";
+  const hat=SKINS.hat.find(h=>h.id===skinHat);
+  const effect=SKINS.effect.find(e=>e.id===skinEffect);
+  const s=size/60;
+
+  ctx.save();
+  ctx.translate(x,y+off);
+
+  // تأثير
+  if(effect&&effect.emoji&&state.tick%30<15){
+    ctx.font=`${14*s}px serif`;ctx.textAlign="center";
+    ctx.fillText(effect.emoji,0,-50*s);
+    ctx.fillText(effect.emoji,-30*s,-30*s);
+    ctx.fillText(effect.emoji,30*s,-30*s);
+  }
+
+  // جسم
+  ctx.fillStyle=bodyColor;
+  roundRect(ctx,-20*s,-20*s,40*s,45*s,8*s);
+  ctx.fill();
+
+  // بريق المعدن
+  const grad=ctx.createLinearGradient(-20*s,-20*s,20*s,25*s);
+  grad.addColorStop(0,"rgba(255,255,255,.25)");
+  grad.addColorStop(1,"rgba(0,0,0,.2)");
+  ctx.fillStyle=grad;
+  roundRect(ctx,-20*s,-20*s,40*s,45*s,8*s);
+  ctx.fill();
+
+  // رأس
+  ctx.fillStyle=bodyColor;
+  roundRect(ctx,-18*s,-45*s,36*s,28*s,7*s);
+  ctx.fill();
+  ctx.fillStyle=grad;
+  roundRect(ctx,-18*s,-45*s,36*s,28*s,7*s);
+  ctx.fill();
+
+  // عيون
+  ctx.fillStyle="#0a0118";
+  ctx.beginPath();ctx.arc(-8*s,-34*s,5*s,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(8*s,-34*s,5*s,0,Math.PI*2);ctx.fill();
+  // وميض العيون
+  const eyeGlow=state.tick%60<30?"#06b6d4":"#a855f7";
+  ctx.fillStyle=eyeGlow;
+  ctx.beginPath();ctx.arc(-8*s,-34*s,2.5*s,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(8*s,-34*s,2.5*s,0,Math.PI*2);ctx.fill();
+
+  // فم
+  ctx.strokeStyle="#06b6d4";ctx.lineWidth=2*s;
+  ctx.beginPath();ctx.arc(0,-28*s,6*s,0,Math.PI);ctx.stroke();
+
+  // أذرع
+  ctx.fillStyle=bodyColor;
+  roundRect(ctx,-32*s,-15*s,10*s,28*s,5*s);ctx.fill();
+  roundRect(ctx,22*s,-15*s,10*s,28*s,5*s);ctx.fill();
+
+  // أقدام
+  roundRect(ctx,-18*s,22*s,14*s,15*s,5*s);ctx.fill();
+  roundRect(ctx,4*s,22*s,14*s,15*s,5*s);ctx.fill();
+
+  // هوائي
+  ctx.strokeStyle=bodyColor;ctx.lineWidth=2*s;
+  ctx.beginPath();ctx.moveTo(0,-45*s);ctx.lineTo(0,-58*s);ctx.stroke();
+  ctx.fillStyle="#f59e0b";
+  ctx.beginPath();ctx.arc(0,-60*s,4*s,0,Math.PI*2);ctx.fill();
+
+  // قبعة
+  if(hat&&hat.emoji){
+    ctx.font=`${20*s}px serif`;ctx.textAlign="center";
+    ctx.fillText(hat.emoji,0,-62*s);
+  }
+
+  ctx.restore();
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+
+// ══════════════════════════════════════════════
+//  زر UI
+// ══════════════════════════════════════════════
+let buttons=[];
+function btn(x,y,w,h,label,color,textColor,id,fontSize=16,radius=12){
+  buttons.push({x:x-w/2,y:y-h/2,w,h,id});
+  const grad=ctx.createLinearGradient(x-w/2,y-h/2,x+w/2,y+h/2);
+  if(color==="#7c3aed"){grad.addColorStop(0,"#7c3aed");grad.addColorStop(1,"#a855f7");}
+  else if(color==="#10b981"){grad.addColorStop(0,"#10b981");grad.addColorStop(1,"#059669");}
+  else if(color==="#f59e0b"){grad.addColorStop(0,"#f59e0b");grad.addColorStop(1,"#d97706");}
+  else if(color==="#ef4444"){grad.addColorStop(0,"#ef4444");grad.addColorStop(1,"#dc2626");}
+  else if(color==="#06b6d4"){grad.addColorStop(0,"#06b6d4");grad.addColorStop(1,"#0891b2");}
+  else{grad.addColorStop(0,color);grad.addColorStop(1,color);}
+  ctx.fillStyle=grad;
+  roundRect(ctx,x-w/2,y-h/2,w,h,radius);ctx.fill();
+  ctx.shadowColor="rgba(0,0,0,.3)";ctx.shadowBlur=8;
+  ctx.fillStyle=textColor;ctx.font=`700 ${fontSize}px Cairo`;ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.shadowBlur=0;
+  ctx.fillText(label,x,y);
+}
+
+function text(x,y,str,size,color,align="center",weight="700"){
+  ctx.font=`${weight} ${size}px Cairo`;ctx.textAlign=align;ctx.textBaseline="middle";ctx.fillStyle=color;
+  ctx.fillText(str,x,y);
+}
+
+function handleClick(e){
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(W/rect.width);
+  const my=(e.clientY-rect.top)*(H/rect.height);
+  for(const b of buttons){
+    if(mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h){
+      onBtn(b.id,mx,my);return;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+//  الشاشات
+// ══════════════════════════════════════════════
+function draw(){
+  ctx=canvas.getContext("2d");
+  buttons=[];
+  drawStars();
+  switch(state.screen){
+    case"login":    drawLogin();    break;
+    case"map":      drawMap();      break;
+    case"planet":   drawPlanet();   break;
+    case"shop":     drawShop();     break;
+    case"challenge":drawChallenge();break;
+    case"hall":     drawHall();     break;
+    case"profile":  drawProfile();  break;
+  }
+  drawNotifications();
+}
+
+// ── شاشة الدخول ──
+let loginForm={pin:"",pass:"",err:"",loading:false};
+let activeInput=null;
+
+function drawLogin(){
+  // شعار
+  ctx.save();
+  const logoGrad=ctx.createLinearGradient(W/2-100,H/2-180,W/2+100,H/2-120);
+  logoGrad.addColorStop(0,"#a855f7");logoGrad.addColorStop(1,"#06b6d4");
+  ctx.font="900 52px Cairo";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillStyle=logoGrad;ctx.fillText("KAWN",W/2,H/2-200);
+  ctx.restore();
+  text(W/2,H/2-165,"عالم كوني 🤖",16,"#9d8ab5");
+
+  drawRobot(W/2,H/2-70,80,state.skin.body,state.skin.hat,state.skin.effect);
+
+  // بطاقة
+  const bw=Math.min(360,W-40),bh=220,bx=W/2-bw/2,by=H/2+20;
+  ctx.fillStyle="rgba(19,8,40,.85)";
+  ctx.strokeStyle="#2d1660";ctx.lineWidth=1.5;
+  roundRect(ctx,bx,by,bw,bh,16);ctx.fill();ctx.stroke();
+
+  // حقل PIN
+  const inpW=bw-40,inpX=W/2-inpW/2;
+  ctx.fillStyle=activeInput==="pin"?"rgba(124,58,237,.2)":"rgba(30,13,61,.8)";
+  ctx.strokeStyle=activeInput==="pin"?"#7c3aed":"#2d1660";ctx.lineWidth=1.5;
+  roundRect(ctx,inpX,by+20,inpW,48,10);ctx.fill();ctx.stroke();
+  text(W/2,by+44,loginForm.pin?"● ".repeat(loginForm.pin.length):"رمز PIN (6 أرقام)",15,loginForm.pin?"#f59e0b":"#9d8ab5");
+  buttons.push({x:inpX,y:by+20,w:inpW,h:48,id:"input_pin"});
+
+  // حقل كلمة المرور
+  ctx.fillStyle=activeInput==="pass"?"rgba(124,58,237,.2)":"rgba(30,13,61,.8)";
+  ctx.strokeStyle=activeInput==="pass"?"#7c3aed":"#2d1660";ctx.lineWidth=1.5;
+  roundRect(ctx,inpX,by+80,inpW,48,10);ctx.fill();ctx.stroke();
+  text(W/2,by+104,loginForm.pass?"● ".repeat(loginForm.pass.length):"كلمة المرور",15,loginForm.pass?"#f1e8ff":"#9d8ab5");
+  buttons.push({x:inpX,y:by+80,w:inpW,h:48,id:"input_pass"});
+
+  if(loginForm.err) text(W/2,by+142,loginForm.err,13,"#ef4444");
+  if(loginForm.loading) text(W/2,by+180,"جاري الدخول...",15,"#9d8ab5");
+  else btn(W/2,by+178,bw-40,46,"🎮 ادخل عالم كوني","#7c3aed","#fff","do_login",17);
+
+  // لوحة مفاتيح
+  drawKeyboard(by+240);
+}
+
+function drawKeyboard(y){
+  const keys=["١","٢","٣","٤","٥","٦","٧","٨","٩","⌫","٠","✓"];
+  const kw=Math.min(W-20,400);
+  const kx=(W-kw)/2;
+  const kbh=kw/4*3+20;
+  ctx.fillStyle="rgba(10,1,24,.7)";
+  roundRect(ctx,kx-10,y-10,kw+20,kbh,16);ctx.fill();
+  keys.forEach((k,i)=>{
+    const col=i%3,row=Math.floor(i/3);
+    const bx=kx+col*(kw/3),by2=y+row*(kw/4);
+    const bwk=kw/3-8,bhk=kw/4-8;
+    ctx.fillStyle=k==="✓"?"rgba(16,185,129,.2)":k==="⌫"?"rgba(239,68,68,.2)":"rgba(30,13,61,.6)";
+    ctx.strokeStyle=k==="✓"?"#10b981":k==="⌫"?"#ef4444":"#2d1660";ctx.lineWidth=1;
+    roundRect(ctx,bx+4,by2+4,bwk,bhk,10);ctx.fill();ctx.stroke();
+    ctx.font=`700 ${k.length>1?18:22}px Cairo`;ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillStyle=k==="✓"?"#10b981":k==="⌫"?"#ef4444":"#f1e8ff";
+    ctx.fillText(k,bx+4+bwk/2,by2+4+bhk/2);
+    buttons.push({x:bx+4,y:by2+4,w:bwk,h:bhk,id:`key_${k}`});
+  });
+}
+
+// ── خريطة الكواكب ──
+function drawMap(){
+  // عنوان
+  text(W/2,32,"🌌 عالم كوني",22,"#a855f7");
+
+  // نجمة الطالب
+  const pts=state.points;
+  const ptText=`⭐ ${pts} نقطة`;
+  ctx.fillStyle="rgba(245,158,11,.15)";
+  ctx.strokeStyle="rgba(245,158,11,.4)";ctx.lineWidth=1;
+  roundRect(ctx,W-130,10,120,38,19);ctx.fill();ctx.stroke();
+  text(W-70,29,ptText,13,"#f59e0b");
+
+  // اسم اللاعب
+  text(16,29,state.userData?.name||"كوني",14,"#9d8ab5","left");
+
+  // خطوط مسار بين الكواكب
+  ctx.strokeStyle="rgba(124,58,237,.2)";ctx.lineWidth=2;ctx.setLineDash([6,4]);
+  for(let i=0;i<PLANETS.length-1;i++){
+    const a=PLANETS[i],b=PLANETS[i+1];
+    ctx.beginPath();ctx.moveTo(a.x*W,a.y*H);ctx.lineTo(b.x*W,b.y*H);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // رسم الكواكب
+  PLANETS.forEach(p=>{
+    const px=p.x*W,py=p.y*H;
+    const locked=pts<p.unlock;
+
+    // هالة
+    if(!locked){
+      const grd=ctx.createRadialGradient(px,py,0,px,py,p.r+20);
+      grd.addColorStop(0,p.glow);grd.addColorStop(1,"transparent");
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(px,py,p.r+20,0,Math.PI*2);ctx.fill();
+    }
+
+    // الكوكب
+    const pGrd=ctx.createRadialGradient(px-p.r*.3,py-p.r*.3,0,px,py,p.r);
+    pGrd.addColorStop(0,locked?"#2d1660":p.color);
+    pGrd.addColorStop(1,locked?"#130828":"rgba(0,0,0,.4)");
+    ctx.fillStyle=pGrd;
+    ctx.beginPath();ctx.arc(px,py,p.r,0,Math.PI*2);ctx.fill();
+
+    // إيموجي
+    ctx.font=`${p.r*.7}px serif`;ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.globalAlpha=locked?.3:1;
+    ctx.fillText(locked?"🔒":p.emoji,px,py);
+    ctx.globalAlpha=1;
+
+    // اسم
+    text(px,py+p.r+16,p.name,13,locked?"#4a4a6a":p.color);
+    if(locked) text(px,py+p.r+32,`يُفتح عند ${p.unlock} نقطة`,11,"#4a4a6a");
+
+    buttons.push({x:px-p.r,y:py-p.r,w:p.r*2,h:p.r*2,id:`planet_${p.id}`});
+  });
+
+  // روبوت الطالب على الخريطة
+  const curPlanet=PLANETS.slice().reverse().find(p=>pts>=p.unlock)||PLANETS[0];
+  drawRobot(curPlanet.x*W,curPlanet.y*H-curPlanet.r-55,50,state.skin.body,state.skin.hat,state.skin.effect);
+
+  // شريط التقدم
+  const nextPlanet=PLANETS.find(p=>pts<p.unlock);
+  if(nextPlanet){
+    const prev=PLANETS[PLANETS.indexOf(nextPlanet)-1];
+    const from=prev?prev.unlock:0,to=nextPlanet.unlock;
+    const prog=Math.min((pts-from)/(to-from),1);
+    const bw=Math.min(W-40,400);
+    ctx.fillStyle="rgba(19,8,40,.8)";ctx.strokeStyle="#2d1660";ctx.lineWidth=1;
+    roundRect(ctx,W/2-bw/2,H-60,bw,36,18);ctx.fill();ctx.stroke();
+    ctx.fillStyle="rgba(124,58,237,.3)";
+    roundRect(ctx,W/2-bw/2+4,H-56,Math.max((bw-8)*prog,0),28,14);ctx.fill();
+    ctx.fillStyle="#7c3aed";
+    roundRect(ctx,W/2-bw/2+4,H-56,Math.max((bw-8)*prog,0),28,14);ctx.fill();
+    text(W/2,H-42,`${pts} / ${to} نقطة للكوكب التالي`,12,"#f1e8ff");
+  }
+
+  // أزرار التنقل
+  const navY=H-100;
+  btn(W/2-90,navY,100,38,"🏪 المتجر","#f59e0b","#0a0118","go_shop",14);
+  btn(W/2+90,navY,100,38,"👥 الزملاء","#06b6d4","#0a0118","go_hall",14);
+  btn(W/2,navY+50,110,38,"👤 ملفي","#a855f7","#fff","go_profile",14);
+}
+
+// ── صفحة الكوكب ──
+function drawPlanet(){
+  const p=state.selectedPlanet;
+  if(!p) return;
+  const locked=state.points<p.unlock;
+
+  text(W/2,35,p.emoji+" "+p.name,22,p.color);
+  text(W/2,65,p.desc,14,"#9d8ab5");
+
+  if(locked){
+    drawRobot(W/2,H/2-40,80,state.skin.body,state.skin.hat,state.skin.effect);
+    text(W/2,H/2+70,"🔒 هذا الكوكب مقفل",18,"#ef4444");
+    text(W/2,H/2+100,`تحتاج ${p.unlock-state.points} نقطة إضافية`,14,"#9d8ab5");
+    btn(W/2,H/2+150,160,46,"← رجوع","#2d1660","#9d8ab5","go_map",15);
+    return;
+  }
+
+  drawRobot(W/2,H/2-80,90,state.skin.body,state.skin.hat,state.skin.effect);
+
+  text(W/2,H/2+30,"اختر نشاطاً في هذا الكوكب:",15,"#9d8ab5");
+
+  btn(W/2,H/2+80,220,50,"⚔️ تحدّ علمي (+15 نقطة)","#7c3aed","#fff","go_challenge",16);
+  btn(W/2,H/2+145,220,46,"🏆 متصدرو الكوكب","#06b6d4","#0a0118","go_hall",15);
+  btn(W/2,H/2+205,160,40,"← رجوع","#2d1660","#9d8ab5","go_map",14);
+}
+
+// ── التحدي العلمي ──
+let challengeState={q:null,selected:null,done:false,correct:false,pts:0};
+
+function drawChallenge(){
+  if(!challengeState.q){
+    // اختر سؤالاً عشوائياً
+    challengeState.q=CHALLENGES[Math.floor(Math.random()*CHALLENGES.length)];
+    challengeState.selected=null;challengeState.done=false;
+  }
+  const q=challengeState.q;
+  text(W/2,35,"⚔️ تحدي علمي",22,"#a855f7");
+  text(W/2,65,`🏆 جائزة: ${q.pts} نقطة`,14,"#f59e0b");
+
+  // روبوت صغير
+  drawRobot(W/2,H*.28,65,state.skin.body,state.skin.hat,state.skin.effect);
+
+  // بطاقة السؤال
+  const qw=Math.min(W-40,440),qx=W/2-qw/2;
+  ctx.fillStyle="rgba(19,8,40,.9)";ctx.strokeStyle="#7c3aed";ctx.lineWidth=1.5;
+  roundRect(ctx,qx,H*.42,qw,80,14);ctx.fill();ctx.stroke();
+  // نص السؤال مع التفاف
+  wrapText(ctx,q.q,W/2,H*.42+40,qw-30,24,"700","#f1e8ff",18);
+
+  // خيارات الإجابة
+  q.opts.forEach((opt,i)=>{
+    const oy=H*.58+i*62;
+    const ow=Math.min(W-40,360),ox=W/2-ow/2;
+    let bg="rgba(30,13,61,.8)",stroke="#2d1660",tc="#f1e8ff";
+    if(challengeState.done){
+      if(i===q.ans){bg="rgba(16,185,129,.2)";stroke="#10b981";tc="#10b981";}
+      else if(i===challengeState.selected){bg="rgba(239,68,68,.15)";stroke="#ef4444";tc="#ef4444";}
+    } else if(challengeState.selected===i){bg="rgba(124,58,237,.25)";stroke="#7c3aed";tc="#a855f7";}
+    ctx.fillStyle=bg;ctx.strokeStyle=stroke;ctx.lineWidth=1.5;
+    roundRect(ctx,ox,oy-22,ow,48,10);ctx.fill();ctx.stroke();
+    const prefix=["أ","ب","ج","د"][i];
+    text(W/2,oy+2,`${prefix}. ${opt}`,15,tc);
+    if(!challengeState.done) buttons.push({x:ox,y:oy-22,w:ow,h:48,id:`ans_${i}`});
+  });
+
+  if(challengeState.done){
+    const msg=challengeState.correct?"🎉 إجابة صحيحة! +"+q.pts+" نقطة":"❌ إجابة خاطئة!";
+    const mc=challengeState.correct?"#10b981":"#ef4444";
+    ctx.fillStyle=challengeState.correct?"rgba(16,185,129,.1)":"rgba(239,68,68,.08)";
+    ctx.strokeStyle=mc;ctx.lineWidth=1.5;
+    roundRect(ctx,W/2-140,H*.84,280,46,12);ctx.fill();ctx.stroke();
+    text(W/2,H*.84+23,msg,16,mc);
+    btn(W/2-80,H*.93,140,42,"تحدي آخر","#7c3aed","#fff","next_challenge",15);
+    btn(W/2+80,H*.93,120,42,"← رجوع","#2d1660","#9d8ab5","go_map",14);
+  }
+}
+
+function wrapText(ctx,text,x,y,maxW,lh,weight,color,size){
+  ctx.font=`${weight} ${size}px Cairo`;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle=color;
+  const words=text.split(" ");let line="",lines=[];
+  words.forEach(w=>{
+    const test=line+w+" ";
+    if(ctx.measureText(test).width>maxW&&line){lines.push(line.trim());line=w+" ";}
+    else line=test;
+  });
+  if(line.trim()) lines.push(line.trim());
+  const totalH=(lines.length-1)*lh;
+  lines.forEach((l,i)=>{ ctx.fillText(l,x,y-totalH/2+i*lh); });
+}
+
+// ── المتجر ──
+let shopTab="body"; // body|hat|effect
+
+function drawShop(){
+  text(W/2,35,"🏪 متجر كوني",22,"#f59e0b");
+  text(W/2,62,`رصيدك: ${state.points} ⭐`,14,"#9d8ab5");
+
+  drawRobot(W/2,H*.22,70,state.skin.body,state.skin.hat,state.skin.effect);
+
+  // تبويبات
+  const tabs=[["body","👗 جسم"],["hat","🎩 قبعة"],["effect","✨ تأثير"]];
+  const tw=(Math.min(W,420)-30)/3;
+  tabs.forEach(([k,l],i)=>{
+    const tx=W/2-Math.min(W,420)/2+15+i*(tw+5);
+    ctx.fillStyle=shopTab===k?"rgba(124,58,237,.4)":"rgba(30,13,61,.7)";
+    ctx.strokeStyle=shopTab===k?"#7c3aed":"#2d1660";ctx.lineWidth=1.5;
+    roundRect(ctx,tx,H*.38,tw,40,10);ctx.fill();ctx.stroke();
+    text(tx+tw/2,H*.38+20,l,14,shopTab===k?"#a855f7":"#9d8ab5");
+    buttons.push({x:tx,y:H*.38,w:tw,h:40,id:`tab_${k}`});
+  });
+
+  // عناصر المتجر
+  const items=SKINS[shopTab];
+  const iw=Math.min((W-40)/items.length,110);
+  items.forEach((item,i)=>{
+    const ix=W/2-(items.length*iw)/2+i*iw+iw/2;
+    const iy=H*.56;
+    const owned=(state.ownedSkins[shopTab]||[]).includes(item.id);
+    const selected=state.skin[shopTab]===item.id;
+    ctx.fillStyle=selected?"rgba(124,58,237,.3)":owned?"rgba(16,185,129,.1)":"rgba(19,8,40,.8)";
+    ctx.strokeStyle=selected?"#7c3aed":owned?"#10b981":"#2d1660";ctx.lineWidth=selected?2:1;
+    roundRect(ctx,ix-iw/2+4,iy-55,iw-8,110,12);ctx.fill();ctx.stroke();
+
+    if(shopTab==="body"){
+      ctx.fillStyle=item.color;
+      roundRect(ctx,ix-15,iy-35,30,35,6);ctx.fill();
+      ctx.font="14px serif";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillStyle=item.color;ctx.fillText("🤖",ix,iy-18);
+    } else {
+      ctx.font="28px serif";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText(item.emoji||"✗",ix,iy-20);
+    }
+
+    text(ix,iy+10,item.name,11,selected?"#a855f7":owned?"#10b981":"#9d8ab5");
+    if(!owned) text(ix,iy+28,`${item.price}⭐`,11,"#f59e0b");
+    else if(selected) text(ix,iy+28,"مختار",11,"#7c3aed");
+    else text(ix,iy+28,"مملوك",11,"#10b981");
+
+    buttons.push({x:ix-iw/2+4,y:iy-55,w:iw-8,h:110,id:`shop_${shopTab}_${item.id}`});
+  });
+
+  btn(W/2,H*.82,200,48,"✅ حفظ المظهر","#10b981","#fff","save_skin",16);
+  btn(W/2,H*.9+20,160,40,"← رجوع","#2d1660","#9d8ab5","go_map",14);
+}
+
+// ── قاعة الزملاء ──
+function drawHall(){
+  text(W/2,35,"👥 قاعة الزملاء",22,"#06b6d4");
+  text(W/2,62,`فصل: ${state.userData?.className||"—"}`,13,"#9d8ab5");
+
+  const mates=state.classmates;
+  if(mates.length===0){
+    text(W/2,H/2,"لا يوجد زملاء في الفصل بعد",16,"#4a4a6a");
+  } else {
+    const cols=Math.min(3,mates.length);
+    const cw=W/cols;
+    mates.slice(0,9).forEach((m,i)=>{
+      const col=i%cols,row=Math.floor(i/cols);
+      const mx=cw/2+col*cw,my=H*.22+row*160;
+      const sk=m.skin||{body:"b0",hat:"h0",effect:"e0"};
+      drawRobot(mx,my,50,sk.body,sk.hat,sk.effect,false);
+      text(mx,my+55,m.name,12,"#f1e8ff");
+      text(mx,my+72,`${m.points||0}⭐`,11,"#f59e0b");
+      // تاج للمتصدر
+      if(i===0){ctx.font="20px serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("👑",mx,my-70);}
+    });
+  }
+
+  btn(W/2,H-55,160,42,"← رجوع","#2d1660","#9d8ab5","go_map",14);
+}
+
+// ── الملف الشخصي ──
+function drawProfile(){
+  text(W/2,35,"👤 ملفي الشخصي",22,"#a855f7");
+
+  drawRobot(W/2,H*.28,80,state.skin.body,state.skin.hat,state.skin.effect);
+
+  const name=state.userData?.name||"كوني";
+  const pts=state.points;
+  const level=pts<50?"بذرة 🌱":pts<150?"ناشئ 🦾":pts<300?"بطل 🚀":"أسطورة 👾";
+
+  text(W/2,H*.47,name,22,"#f1e8ff");
+  text(W/2,H*.52,`المستوى: ${level}`,15,"#a855f7");
+
+  const bw=Math.min(W-40,340),bx=W/2-bw/2;
+
+  // إحصائيات
+  const stats=[["⭐ النقاط",pts],["🏅 المستوى",level.split(" ")[0]],["🏫 الفصل",state.userData?.className||"—"]];
+  stats.forEach((s,i)=>{
+    const sy=H*.58+i*58;
+    ctx.fillStyle="rgba(19,8,40,.8)";ctx.strokeStyle="#2d1660";ctx.lineWidth=1;
+    roundRect(ctx,bx,sy,bw,50,12);ctx.fill();ctx.stroke();
+    text(bx+15,sy+25,s[0],14,"#9d8ab5","left");
+    text(bx+bw-15,sy+25,String(s[1]),14,"#f1e8ff","right");
+  });
+
+  // شريط التقدم
+  const nextPt=PLANETS.find(p=>pts<p.unlock);
+  if(nextPt){
+    const prev=PLANETS[PLANETS.indexOf(nextPt)-1];
+    const from=prev?prev.unlock:0,to=nextPt.unlock;
+    const prog=Math.min((pts-from)/(to-from),1);
+    ctx.fillStyle="rgba(19,8,40,.8)";ctx.strokeStyle="#2d1660";ctx.lineWidth=1;
+    roundRect(ctx,bx,H*.58+3*58,bw,50,12);ctx.fill();ctx.stroke();
+    text(bx+15,H*.58+3*58+16,`نحو ${nextPt.name}`,12,"#9d8ab5","left");
+    ctx.fillStyle="rgba(45,22,96,.5)";roundRect(ctx,bx+10,H*.58+3*58+30,bw-20,12,6);ctx.fill();
+    ctx.fillStyle="#7c3aed";roundRect(ctx,bx+10,H*.58+3*58+30,(bw-20)*prog,12,6);ctx.fill();
+    text(bx+bw-15,H*.58+3*58+36,`${pts}/${to}`,11,"#a855f7","right");
+  }
+
+  btn(W/2,H-55,160,42,"← رجوع","#2d1660","#9d8ab5","go_map",14);
+}
+
+// ── الإشعارات ──
+function drawNotifications(){
+  state.notifications=state.notifications.filter(n=>Date.now()-n.time<3000);
+  state.notifications.forEach((n,i)=>{
+    const alpha=Math.min(1,(3000-(Date.now()-n.time))/500);
+    ctx.globalAlpha=alpha;
+    const nw=260,nh=44,nx=W/2-nw/2,ny=80+i*54;
+    ctx.fillStyle=n.type==="success"?"rgba(16,185,129,.9)":"rgba(239,68,68,.9)";
+    roundRect(ctx,nx,ny,nw,nh,12);ctx.fill();
+    ctx.font="700 15px Cairo";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillStyle="#fff";ctx.fillText(n.msg,W/2,ny+22);
+    ctx.globalAlpha=1;
+  });
+}
+
+function notify(msg,type="success"){
+  state.notifications.push({msg,type,time:Date.now()});
+}
+
+// ══════════════════════════════════════════════
+//  معالج الأحداث
+// ══════════════════════════════════════════════
+function onBtn(id){
+  // لوحة مفاتيح
+  if(id.startsWith("key_")){
+    const k=id.replace("key_","");
+    if(k==="⌫"){
+      if(activeInput==="pin"&&loginForm.pin.length>0) loginForm.pin=loginForm.pin.slice(0,-1);
+      else if(activeInput==="pass"&&loginForm.pass.length>0) loginForm.pass=loginForm.pass.slice(0,-1);
+    } else if(k==="✓"){
+      doLogin();
+    } else {
+      const digit={"١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9","٠":"0"}[k]||k;
+      if(activeInput==="pin"&&loginForm.pin.length<6) loginForm.pin+=digit;
+      else if(activeInput==="pass"&&loginForm.pass.length<20) loginForm.pass+=digit;
+    }
+    return;
+  }
+  if(id==="input_pin"){activeInput="pin";return;}
+  if(id==="input_pass"){activeInput="pass";return;}
+  if(id==="do_login"){doLogin();return;}
+
+  // الخريطة
+  if(id.startsWith("planet_")){
+    const pid=id.replace("planet_","");
+    state.selectedPlanet=PLANETS.find(p=>p.id===pid);
+    state.screen="planet";return;
+  }
+  if(id==="go_map"){state.screen="map";return;}
+  if(id==="go_shop"){state.screen="shop";return;}
+  if(id==="go_hall"){loadClassmates();state.screen="hall";return;}
+  if(id==="go_profile"){state.screen="profile";return;}
+  if(id==="go_challenge"){challengeState.q=null;state.screen="challenge";return;}
+
+  // التحدي
+  if(id.startsWith("ans_")){
+    if(challengeState.done) return;
+    const ans=Number(id.replace("ans_",""));
+    challengeState.selected=ans;
+    challengeState.done=true;
+    challengeState.correct=ans===challengeState.q.ans;
+    if(challengeState.correct){
+      const pts=challengeState.q.pts;
+      state.points+=pts;
+      savePoints(pts);
+      notify(`+${pts} نقطة! 🎉`);
+    } else {
+      notify("إجابة خاطئة! حاول مرة أخرى","error");
+    }
+    return;
+  }
+  if(id==="next_challenge"){challengeState.q=null;return;}
+
+  // المتجر
+  if(id.startsWith("tab_")){shopTab=id.replace("tab_","");return;}
+  if(id.startsWith("shop_")){
+    const parts=id.split("_");const cat=parts[1],itemId=parts[2];
+    const item=SKINS[cat].find(x=>x.id===itemId);
+    if(!item) return;
+    const owned=(state.ownedSkins[cat]||[]).includes(itemId);
+    if(owned){state.skin[cat]=itemId;notify("تم اختيار المظهر ✅");}
+    else if(state.points>=item.price){
+      state.points-=item.price;
+      state.ownedSkins[cat]=state.ownedSkins[cat]||[];
+      state.ownedSkins[cat].push(itemId);
+      state.skin[cat]=itemId;
+      notify(`تم شراء "${item.name}" 🎉`);
+      saveSkin();
+    } else {
+      notify(`تحتاج ${item.price-state.points} نقطة إضافية`,"error");
+    }
+    return;
+  }
+  if(id==="save_skin"){saveSkin();notify("تم حفظ مظهرك ✅");return;}
+}
+
+// ══════════════════════════════════════════════
+//  Firebase
+// ══════════════════════════════════════════════
+async function doLogin(){
+  if(loginForm.loading) return;
+  if(!loginForm.pin||!loginForm.pass){loginForm.err="أدخل PIN وكلمة المرور";return;}
+  loginForm.loading=true;loginForm.err="";
+  try{
+    const snap=await db.collection("users").where("pin","==",loginForm.pin).where("role","==","student").get();
+    if(snap.empty){loginForm.err="رمز PIN غير صحيح";loginForm.loading=false;return;}
+    const doc=snap.docs[0];
+    const data=doc.data();
+    await auth.signInWithEmailAndPassword(data.email,data.password||loginForm.pass);
+    state.user={uid:doc.id};
+    state.userData=data;
+    state.points=data.points||0;
+    state.skin=data.skin||{body:"b0",hat:"h0",effect:"e0"};
+    state.ownedSkins=data.ownedSkins||{body:["b0"],hat:["h0"],effect:["e0"]};
+    state.screen="map";
+    loginForm.loading=false;
+    notify(`مرحباً ${data.name}! 🎮`);
+  }catch(e){
+    loginForm.err="كلمة المرور غير صحيحة";
+    loginForm.loading=false;
+  }
+}
+
+async function savePoints(pts){
+  if(!state.user) return;
+  try{
+    await db.collection("users").doc(state.user.uid).update({points:FS.increment(pts),skin:state.skin,ownedSkins:state.ownedSkins});
+    // تحديث نقاط الطالب في الفصل
+    if(state.userData?.classId){
+      await db.collection("classrooms").doc(state.userData.classId).collection("students").doc(state.user.uid).update({points:FS.increment(pts)});
+    }
+  }catch(e){console.log("save pts err",e);}
+}
+
+async function saveSkin(){
+  if(!state.user) return;
+  try{await db.collection("users").doc(state.user.uid).update({skin:state.skin,ownedSkins:state.ownedSkins,points:state.points});}
+  catch(e){console.log("save skin err",e);}
+}
+
+async function loadClassmates(){
+  if(!state.userData?.classId) return;
+  try{
+    const snap=await db.collection("classrooms").doc(state.userData.classId).collection("students").orderBy("points","desc").get();
+    state.classmates=snap.docs.map(d=>({id:d.id,...d.data()})).filter(s=>s.studentId!==state.user?.uid&&s.id!==state.user?.uid);
+  }catch(e){console.log("load mates err",e);}
+}
+
+// ══════════════════════════════════════════════
+//  تشغيل اللعبة
+// ══════════════════════════════════════════════
+window.addEventListener("load",()=>{
+  initCanvas();
+  // تحقق من المستخدم الحالي
+  auth.onAuthStateChanged(async u=>{
+    if(u&&state.screen==="login"){
+      try{
+        const snap=await db.collection("users").doc(u.uid).get();
+        const data=snap.data();
+        if(data&&data.role==="student"){
+          state.user={uid:u.uid};
+          state.userData=data;
+          state.points=data.points||0;
+          state.skin=data.skin||{body:"b0",hat:"h0",effect:"e0"};
+          state.ownedSkins=data.ownedSkins||{body:["b0"],hat:["h0"],effect:["e0"]};
+          state.screen="map";
+          notify(`أهلاً ${data.name}! 🎮`);
+        }
+      }catch(e){}
+    }
+  });
+});
+</script>
+</body>
+</html>
