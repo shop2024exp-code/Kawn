@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>كوني الفضائي — منصة كون</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Cairo',sans-serif}
+canvas{display:block;touch-action:none}
+#ui{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+#login{position:fixed;inset:0;background:linear-gradient(135deg,#050010,#0a0130);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;font-family:sans-serif;direction:rtl}
+.logo{font-size:3rem;font-weight:900;background:linear-gradient(135deg,#a855f7,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+.logo-sub{color:#9d8ab5;font-size:.85rem;letter-spacing:3px;margin-bottom:30px}
+.card{background:rgba(19,8,40,.9);border:1px solid #2d1660;border-radius:16px;padding:24px;width:min(360px,90vw)}
+.inp{width:100%;padding:11px 15px;border-radius:10px;background:#1e0d3d;border:1px solid #2d1660;color:#f1e8ff;font-size:1rem;outline:none;margin-bottom:12px;direction:rtl;font-family:inherit}
+.inp:focus{border-color:#7c3aed}
+.btn{width:100%;padding:13px;border-radius:10px;border:none;cursor:pointer;font-size:1rem;font-weight:700;font-family:inherit}
+.btn-p{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff}
+.btn-s{background:#1e0d3d;color:#9d8ab5;border:1px solid #2d1660;margin-top:8px}
+.err{color:#ef4444;font-size:.85rem;text-align:center;margin-bottom:8px}
+#hud{position:fixed;top:0;left:0;right:0;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);z-index:20;display:none}
+.hud-item{color:#f1e8ff;font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:5px}
+#msg-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:50;background:rgba(0,0,0,.7);backdrop-filter:blur(6px)}
+.msg-box{background:rgba(19,8,40,.95);border-radius:20px;padding:28px;text-align:center;max-width:320px;width:90%;border:1px solid #2d1660}
+.msg-title{font-size:1.8rem;font-weight:900;margin-bottom:8px;color:#f1e8ff}
+.msg-sub{color:#9d8ab5;font-size:.9rem;margin-bottom:20px}
+.msg-btn{padding:12px 28px;border-radius:12px;border:none;cursor:pointer;font-size:1rem;font-weight:700;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;margin:5px;font-family:inherit}
+#joystick-zone{position:fixed;bottom:20px;left:20px;width:120px;height:120px;z-index:30;display:none}
+#joystick-base{width:120px;height:120px;border-radius:50%;background:rgba(124,58,237,.2);border:2px solid rgba(124,58,237,.4);position:relative}
+#joystick-knob{width:50px;height:50px;border-radius:50%;background:rgba(124,58,237,.7);position:absolute;top:35px;left:35px;transition:none}
+#fire-btn{position:fixed;bottom:30px;right:25px;width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#dc2626);border:3px solid rgba(239,68,68,.5);color:#fff;font-size:1.8rem;cursor:pointer;z-index:30;display:none;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(239,68,68,.4)}
+#bomb-btn{position:fixed;bottom:125px;right:25px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);border:3px solid rgba(245,158,11,.5);color:#fff;font-size:1.4rem;cursor:pointer;z-index:30;display:none;align-items:center;justify-content:center;box-shadow:0 0 15px rgba(245,158,11,.4)}
+#quiz-panel{position:fixed;bottom:0;left:0;right:0;background:rgba(10,1,36,.95);border-top:2px solid #7c3aed;padding:16px;z-index:40;display:none;direction:rtl;backdrop-filter:blur(10px)}
+.quiz-q{color:#f1e8ff;font-size:.9rem;font-weight:700;margin-bottom:10px}
+.quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quiz-opt{padding:10px;border-radius:10px;border:1px solid #2d1660;background:#1e0d3d;color:#f1e8ff;font-size:.82rem;cursor:pointer;font-family:inherit;text-align:center}
+.quiz-opt:hover{border-color:#7c3aed;background:rgba(124,58,237,.2)}
+.quiz-opt.correct{border-color:#10b981;background:rgba(16,185,129,.2);color:#10b981}
+.quiz-opt.wrong{border-color:#ef4444;background:rgba(239,68,68,.1);color:#ef4444}
+#shop-panel{position:fixed;inset:0;background:rgba(5,0,16,.95);z-index:60;display:none;direction:rtl;overflow-y:auto;padding:20px}
+.shop-title{color:#f59e0b;font-size:1.3rem;font-weight:900;text-align:center;margin-bottom:16px}
+.shop-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:400px;margin:0 auto}
+.shop-item{background:#130828;border:1px solid #2d1660;border-radius:12px;padding:14px;text-align:center;cursor:pointer}
+.shop-item.owned{border-color:#10b981}
+.shop-item.equipped{border-color:#7c3aed;background:rgba(124,58,237,.1)}
+.si-icon{font-size:2rem;margin-bottom:6px}
+.si-name{color:#f1e8ff;font-size:.85rem;font-weight:700}
+.si-price{color:#f59e0b;font-size:.78rem;margin-top:4px}
+#notif{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:8px 20px;border-radius:20px;font-weight:700;z-index:80;display:none;font-size:.88rem;white-space:nowrap}
+#notif.err{background:#ef4444}
+#mission-banner{position:fixed;top:55px;left:0;right:0;text-align:center;padding:8px;background:rgba(124,58,237,.3);border-bottom:1px solid rgba(124,58,237,.4);color:#f1e8ff;font-size:.82rem;font-weight:700;z-index:19;display:none}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<!-- شاشة الدخول -->
+<div id="login">
+  <div style="font-size:4rem;animation:float 3s ease-in-out infinite">🤖</div>
+  <div class="logo">KAWN</div>
+  <div class="logo-sub">كوني الفضائي</div>
+  <div class="card">
+    <input class="inp" id="pin-inp" placeholder="رمز PIN (6 أرقام)" type="number" maxlength="6"/>
+    <input class="inp" id="pass-inp" placeholder="كلمة المرور" type="password"/>
+    <div class="err" id="login-err" style="display:none"></div>
+    <button class="btn btn-p" onclick="doLogin()">🚀 ادخل الفضاء</button>
+    <button class="btn btn-s" onclick="location.href='index.html'">← العودة للمنصة</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-item">❤️ <span id="hud-hp">3</span></div>
+  <div class="hud-item">⭐ <span id="hud-pts">0</span></div>
+  <div class="hud-item">💣 <span id="hud-bombs">2</span></div>
+  <div class="hud-item">🌊 <span id="hud-wave">1</span></div>
+  <div style="display:flex;gap:8px">
+    <button onclick="openShop()" style="background:rgba(245,158,11,.2);border:1px solid #f59e0b;color:#f59e0b;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:.75rem;font-family:inherit">🏪 متجر</button>
+    <button onclick="pauseGame()" style="background:rgba(124,58,237,.2);border:1px solid #7c3aed;color:#a855f7;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:.75rem;font-family:inherit">⏸</button>
+  </div>
+</div>
+
+<!-- شريط المهمة -->
+<div id="mission-banner" id="mission-banner">🎯 مهمة: اهزم موجة الغزاة!</div>
+
+<!-- Canvas -->
+<canvas id="c"></canvas>
+
+<!-- جويستيك -->
+<div id="joystick-zone">
+  <div id="joystick-base"><div id="joystick-knob"></div></div>
+</div>
+
+<!-- أزرار -->
+<div id="fire-btn" onclick="playerFire()">🔥</div>
+<div id="bomb-btn" onclick="useBomb()">💣</div>
+
+<!-- لوحة الأسئلة -->
+<div id="quiz-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="color:#a855f7;font-size:.8rem;font-weight:700">⚡ سؤال علمي — أجب واحصل على مكافأة!</div>
+    <div id="quiz-timer" style="color:#f59e0b;font-weight:900;font-size:1rem">15</div>
+  </div>
+  <div class="quiz-q" id="quiz-q"></div>
+  <div class="quiz-opts" id="quiz-opts"></div>
+</div>
+
+<!-- المتجر -->
+<div id="shop-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div class="shop-title">🏪 متجر الأسلحة والتحسينات</div>
+    <button onclick="closeShop()" style="background:#1e0d3d;border:1px solid #2d1660;color:#9d8ab5;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit">✕ إغلاق</button>
+  </div>
+  <div style="text-align:center;color:#f59e0b;font-size:.9rem;margin-bottom:12px">رصيدك: <strong id="shop-pts">0</strong> ⭐</div>
+  <div class="shop-grid" id="shop-grid"></div>
+</div>
+
+<!-- رسائل اللعبة -->
+<div id="msg-overlay">
+  <div class="msg-box">
+    <div class="msg-title" id="msg-title">🎉</div>
+    <div class="msg-sub" id="msg-sub"></div>
+    <div id="msg-btns"></div>
+  </div>
+</div>
+
+<!-- إشعار -->
+<div id="notif"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  Firebase
+// ══════════════════════════════════════════════
+const FCFG={apiKey:"AIzaSyCtaBABFyIdzZOHNY0awe0gYFxraQqiDy0",authDomain:"kawn-platform.firebaseapp.com",projectId:"kawn-platform",storageBucket:"kawn-platform.firebasestorage.app",messagingSenderId:"755469630864",appId:"1:755469630864:web:1c45298d5297588c854715"};
+if(!firebase.apps.length) firebase.initializeApp(FCFG);
+const auth=firebase.auth();
+const db=firebase.firestore();
+const FS=firebase.firestore.FieldValue;
+
+// ══════════════════════════════════════════════
+//  Canvas & Context
+// ══════════════════════════════════════════════
+const canvas=document.getElementById("c");
+const ctx=canvas.getContext("2d");
+let W,H;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+window.addEventListener("resize",resize);resize();
+
+// ══════════════════════════════════════════════
+//  حالة اللعبة
+// ══════════════════════════════════════════════
+const G={
+  running:false, paused:false,
+  phase:"login", // login|game|boss|gameover|win
+  wave:1, maxWaves:5,
+  player:{x:0,y:0,w:44,h:50,hp:3,maxHp:3,speed:5,bombs:2,
+          weapon:"laser",weaponLevel:1,shield:false,shieldTimer:0,
+          invincible:false,invTimer:0,lastFire:0,fireRate:300},
+  bullets:[],enemyBullets:[],
+  enemies:[],particles:[],stars:[],
+  boss:null, bossActive:false,
+  score:0, totalPoints:0,
+  quizActive:false, quizTimer:0, quizInterval:null,
+  missionType:"combat", // combat|rescue|survival|boss
+  missionTimer:0, missionGoal:0, missionDone:false,
+  rescueTargets:[], crystals:[],
+  survivalTimer:0,
+  tick:0,
+  gameOver:false,
+  userData:null, uid:null,
+  owned:{weapons:["laser"],upgrades:[]},
+  equipped:{weapon:"laser"},
+};
+
+// متجر العناصر
+const SHOP_ITEMS=[
+  {id:"laser2",name:"ليزر مزدوج",icon:"⚡⚡",price:40,type:"weapon",desc:"يطلق شعاعين"},
+  {id:"missile",name:"صواريخ",icon:"🚀",price:80,type:"weapon",desc:"أقوى وأبطأ"},
+  {id:"plasma",name:"بلازما",icon:"💜",price:150,type:"weapon",desc:"الأقوى دمار"},
+  {id:"shield",name:"درع واقي",icon:"🛡",price:60,type:"upgrade",desc:"حماية مؤقتة"},
+  {id:"hp_up",name:"حياة إضافية",icon:"❤️",price:50,type:"upgrade",desc:"+1 حياة"},
+  {id:"bomb_up",name:"قنبلة إضافية",icon:"💣",price:35,type:"upgrade",desc:"+2 قنبلة"},
+  {id:"speed_up",name:"تسريع",icon:"⚡",price:45,type:"upgrade",desc:"سرعة أعلى"},
+  {id:"fire_up",name:"معدل إطلاق",icon:"🔫",price:55,type:"upgrade",desc:"إطلاق أسرع"},
+];
+
+// أسئلة الكنز العلمي
+const QUESTIONS=[
+  {q:"ما أكبر كوكب في المجموعة الشمسية؟",o:["المشتري","زحل","الأرض","المريخ"],a:0,pts:20},
+  {q:"كم سرعة الضوء تقريباً؟",o:["300,000 كم/ث","150,000 كم/ث","500,000 كم/ث","100,000 كم/ث"],a:0,pts:20},
+  {q:"ما الغاز الأكثر في الغلاف الجوي؟",o:["النيتروجين","الأكسجين","ثاني أكسيد الكربون","الهيليوم"],a:0,pts:15},
+  {q:"ما العضو المسؤول عن ضخ الدم؟",o:["القلب","الكبد","الرئة","الكلية"],a:0,pts:15},
+  {q:"كم عدد عظام الإنسان البالغ؟",o:["206","306","106","156"],a:0,pts:20},
+  {q:"ما أسرع حيوان بري؟",o:["الفهد","الأسد","الغزال","النمر"],a:0,pts:15},
+  {q:"ما مصدر طاقة الشمس؟",o:["الاندماج النووي","الانشطار النووي","الحرق","الضغط"],a:0,pts:25},
+  {q:"كم يبلغ عدد أضلع المثلث؟",o:["3","4","5","6"],a:0,pts:10},
+  {q:"ما وحدة قياس الكهرباء؟",o:["الأمبير","الفولت","الوات","الأوم"],a:0,pts:15},
+  {q:"أي كوكب يُعرف بالكوكب الأحمر؟",o:["المريخ","المشتري","زحل","الزهرة"],a:0,pts:15},
+];
+
+// ══════════════════════════════════════════════
+//  دخول Firebase
+// ══════════════════════════════════════════════
+async function doLogin(){
+  const pin=document.getElementById("pin-inp").value.trim();
+  const pass=document.getElementById("pass-inp").value.trim();
+  const err=document.getElementById("login-err");
+  err.style.display="none";
+  if(!pin||!pass){err.textContent="أدخل PIN وكلمة المرور";err.style.display="block";return;}
+  try{
+    const snap=await db.collection("users").where("pin","==",pin).where("role","==","student").get();
+    if(snap.empty){err.textContent="رمز PIN غير صحيح";err.style.display="block";return;}
+    const doc=snap.docs[0];
+    const data=doc.data();
+    await auth.signInWithEmailAndPassword(data.email,data.password||pass);
+    G.uid=doc.id; G.userData=data;
+    G.totalPoints=data.points||0;
+    G.score=G.totalPoints;
+    G.owned=data.gameOwned||{weapons:["laser"],upgrades:[]};
+    G.equipped=data.gameEquipped||{weapon:"laser"};
+    applyWeapon(G.equipped.weapon);
+    document.getElementById("login").style.display="none";
+    startGame();
+  }catch(e){err.textContent="كلمة المرور غير صحيحة";err.style.display="block";}
+}
+
+// تحقق تلقائي
+auth.onAuthStateChanged(async u=>{
+  if(u&&G.phase==="login"){
+    try{
+      const snap=await db.collection("users").doc(u.uid).get();
+      const data=snap.data();
+      if(data&&data.role==="student"){
+        G.uid=u.uid;G.userData=data;
+        G.totalPoints=data.points||0;G.score=G.totalPoints;
+        G.owned=data.gameOwned||{weapons:["laser"],upgrades:[]};
+        G.equipped=data.gameEquipped||{weapon:"laser"};
+        applyWeapon(G.equipped.weapon);
+        document.getElementById("login").style.display="none";
+        startGame();
+      }
+    }catch(e){}
+  }
+});
+
+function applyWeapon(id){
+  const wp={laser:{rate:300,level:1},laser2:{rate:280,level:2},missile:{rate:500,level:3},plasma:{rate:700,level:4}};
+  const w=wp[id]||wp.laser;
+  G.player.fireRate=w.rate;G.player.weaponLevel=w.level;G.player.weapon=id;
+}
+
+// ══════════════════════════════════════════════
+//  تهيئة اللعبة
+// ══════════════════════════════════════════════
+function startGame(){
+  G.running=true;G.phase="game";G.wave=1;G.gameOver=false;
+  G.player.hp=G.player.maxHp;G.player.bombs=2;
+  G.player.x=W/2;G.player.y=H-100;
+  G.bullets=[];G.enemyBullets=[];G.enemies=[];G.particles=[];G.crystals=[];
+  G.rescueTargets=[];G.boss=null;G.bossActive=false;
+  genStars();
+  showHUD();
+  startMission();
+  requestAnimationFrame(gameLoop);
+}
+
+function genStars(){
+  G.stars=[];
+  for(let i=0;i<150;i++) G.stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.8+.3,sp:Math.random()*.5+.2});
+}
+
+function showHUD(){
+  document.getElementById("hud").style.display="flex";
+  document.getElementById("joystick-zone").style.display="block";
+  document.getElementById("fire-btn").style.display="flex";
+  document.getElementById("bomb-btn").style.display="flex";
+  updateHUD();
+}
+
+function updateHUD(){
+  document.getElementById("hud-hp").textContent="❤️".repeat(G.player.hp);
+  document.getElementById("hud-pts").textContent=G.score;
+  document.getElementById("hud-bombs").textContent=G.player.bombs;
+  document.getElementById("hud-wave").textContent=G.wave+"/"+G.maxWaves;
+}
+
+// ══════════════════════════════════════════════
+//  أنواع المهام
+// ══════════════════════════════════════════════
+function startMission(){
+  // اختر نوع المهمة حسب الموجة
+  if(G.wave===G.maxWaves){G.missionType="boss";startBossMission();}
+  else if(G.wave%3===0){G.missionType="rescue";startRescueMission();}
+  else if(G.wave%2===0){G.missionType="survival";startSurvivalMission();}
+  else{G.missionType="combat";startCombatMission();}
+}
+
+function startCombatMission(){
+  G.missionGoal=5+G.wave*3;
+  showMission("🎯 مهمة قتالية: اهزم "+G.missionGoal+" عدو!");
+  spawnEnemyWave();
+}
+
+function startRescueMission(){
+  G.missionGoal=3;
+  G.rescueTargets=[];
+  for(let i=0;i<3;i++) G.rescueTargets.push({x:80+Math.random()*(W-160),y:80+Math.random()*(H/2),r:18,saved:false,angle:0});
+  showMission("🆘 مهمة إنقاذ: أنقذ "+G.missionGoal+" روبوتات محاصرة!");
+  spawnEnemyWave(true);
+}
+
+function startSurvivalMission(){
+  G.survivalTimer=20+G.wave*5; // ثواني
+  showMission("⏱ مهمة بقاء: اصمد "+G.survivalTimer+" ثانية!");
+  spawnEnemyWave(false,true);
+}
+
+function startBossMission(){
+  showMission("👾 تحذير! مركبة الأم تقترب... استعد!");
+  spawnEnemyWave();
+  setTimeout(()=>spawnBoss(),3000);
+}
+
+function showMission(text){
+  const b=document.getElementById("mission-banner");
+  b.textContent=text;b.style.display="block";
+  setTimeout(()=>b.style.display="none",4000);
+}
+
+// ══════════════════════════════════════════════
+//  توليد الأعداء
+// ══════════════════════════════════════════════
+const ENEMY_TYPES=[
+  {type:"grunt",   emoji:"👾",hp:1,spd:1.2,pts:10,w:32,h:32,fire:false},
+  {type:"shooter", emoji:"🛸",hp:2,spd:.9, pts:20,w:38,h:38,fire:true},
+  {type:"tank",    emoji:"🪐",hp:5,spd:.5, pts:40,w:46,h:46,fire:true},
+  {type:"speeder", emoji:"☄️",hp:1,spd:2.5,pts:15,w:28,h:28,fire:false},
+  {type:"asteroid",emoji:"🪨",hp:3,spd:.8, pts:25,w:42,h:42,fire:false,spin:true},
+];
+
+function spawnEnemyWave(withGuards=false,dense=false){
+  G.enemies=[];
+  const count=dense?8+G.wave*2:4+G.wave*2;
+  const types=G.wave<=1?[0,0,3]:G.wave<=3?[0,1,3,3]:ENEMY_TYPES.map((_,i)=>i);
+
+  for(let i=0;i<count;i++){
+    const ti=types[Math.floor(Math.random()*types.length)];
+    const t=ENEMY_TYPES[ti];
+    const cols=Math.ceil(Math.sqrt(count));
+    const row=Math.floor(i/cols),col=i%cols;
+    G.enemies.push({
+      ...t,
+      x:60+col*(W-120)/Math.max(cols-1,1),
+      y:-50-row*70,
+      vx:(Math.random()-.5)*.5,
+      vy:t.spd,
+      maxHp:t.hp,angle:0,
+      fireTimer:Math.random()*120,
+      pattern:Math.floor(Math.random()*3), // نمط الحركة
+      patternTimer:0,
+    });
+  }
+}
+
+function spawnBoss(){
+  G.boss={
+    x:W/2,y:-80,w:90,h:90,
+    hp:30+G.wave*10,maxHp:30+G.wave*10,
+    phase:1,angle:0,
+    fireTimer:0,
+    vx:1.5,vy:.4,
+    pattern:0,patternTimer:0,
+    shields:3,shieldActive:true,
+  };
+  G.bossActive=true;
+  showMission("💥 مواجهة المركبة الأم! استهدف دروعها أولاً!");
+}
+
+// ══════════════════════════════════════════════
+//  حلقة اللعبة
+// ══════════════════════════════════════════════
+function gameLoop(ts){
+  if(!G.running) return;
+  if(!G.paused){
+    update(ts);
+    render();
+  } else {
+    // ارسم خلفية فقط عند الإيقاف
+    ctx.fillStyle="rgba(0,0,0,.5)";ctx.fillRect(0,0,W,H);
+    ctx.fillStyle="#f1e8ff";ctx.font="700 24px Cairo";ctx.textAlign="center";
+    ctx.fillText("⏸ إيقاف مؤقت",W/2,H/2);
+    ctx.font="700 16px Cairo";ctx.fillStyle="#9d8ab5";
+    ctx.fillText("اضغط ⏸ للمتابعة",W/2,H/2+40);
+  }
+  G.tick++;
+  requestAnimationFrame(gameLoop);
+}
+
+// ══════════════════════════════════════════════
+//  التحديث
+// ══════════════════════════════════════════════
+function update(ts){
+  updateStars();
+  updatePlayer();
+  updateBullets();
+  updateEnemies();
+  updateBoss();
+  updateParticles();
+  updateCrystals();
+  updateRescue();
+  updateSurvival();
+  checkWaveComplete();
+  if(G.quizActive&&!G.paused) updateQuizTimer();
+}
+
+function updateStars(){
+  G.stars.forEach(s=>{s.y+=s.sp;if(s.y>H){s.y=-5;s.x=Math.random()*W;}});
+}
+
+function updatePlayer(){
+  const p=G.player;
+  // حركة الجويستيك
+  if(joyActive){
+    p.x+=joyDx*p.speed;
+    p.y+=joyDy*p.speed;
+  }
+  // حدود الشاشة
+  p.x=Math.max(p.w/2,Math.min(W-p.w/2,p.x));
+  p.y=Math.max(p.h/2,Math.min(H-p.h/2,p.y));
+  // تراجع الدرع
+  if(p.shield){p.shieldTimer--;if(p.shieldTimer<=0)p.shield=false;}
+  // تراجع الحصانة
+  if(p.invincible){p.invTimer--;if(p.invTimer<=0)p.invincible=false;}
+  // إطلاق تلقائي إذا الجويستيك نشط
+  if(joyActive&&Date.now()-p.lastFire>p.fireRate){playerFire();}
+}
+
+function updateBullets(){
+  // رصاص اللاعب
+  G.bullets=G.bullets.filter(b=>{
+    b.x+=b.vx;b.y+=b.vy;
+    if(b.y<-20||b.x<-20||b.x>W+20) return false;
+    // اصطدام بالأعداء
+    let hit=false;
+    G.enemies.forEach(e=>{
+      if(!e.dead&&Math.abs(b.x-e.x)<(e.w/2+b.r)&&Math.abs(b.y-e.y)<(e.h/2+b.r)){
+        e.hp-=b.dmg||1;hit=true;
+        spawnHitParticles(e.x,e.y,"#f59e0b",5);
+        if(e.hp<=0){killEnemy(e);}
+      }
+    });
+    // اصطدام بالبوس
+    if(G.bossActive&&G.boss&&!hit){
+      const boss=G.boss;
+      if(Math.abs(b.x-boss.x)<(boss.w/2+b.r)&&Math.abs(b.y-boss.y)<(boss.h/2+b.r)){
+        if(boss.shieldActive&&boss.shields>0){
+          boss.shields--;spawnHitParticles(b.x,b.y,"#06b6d4",6);
+          if(boss.shields<=0)boss.shieldActive=false;
+        } else {
+          boss.hp-=b.dmg||1;hit=true;
+          spawnHitParticles(boss.x,boss.y,"#ef4444",6);
+          if(boss.hp<=0)killBoss();
+        }
+      }
+    }
+    return !hit;
+  });
+
+  // رصاص الأعداء
+  G.enemyBullets=G.enemyBullets.filter(b=>{
+    b.x+=b.vx;b.y+=b.vy;
+    if(b.y>H+20||b.x<-20||b.x>W+20) return false;
+    // اصطدام باللاعب
+    const p=G.player;
+    if(!p.invincible&&Math.abs(b.x-p.x)<(p.w/2+b.r)&&Math.abs(b.y-p.y)<(p.h/2+b.r)){
+      if(p.shield){p.shield=false;spawnHitParticles(p.x,p.y,"#06b6d4",8);return false;}
+      damagePlayer();return false;
+    }
+    return true;
+  });
+}
+
+function updateEnemies(){
+  G.enemies.forEach(e=>{
+    if(e.dead) return;
+    e.angle+=.02;
+    e.patternTimer++;
+
+    // أنماط الحركة
+    switch(e.pattern){
+      case 0: e.x+=e.vx;e.y+=e.vy;if(e.x<30||e.x>W-30)e.vx*=-1;break;
+      case 1: e.x+=Math.sin(e.patternTimer*.03)*2;e.y+=e.vy;break;
+      case 2: e.x+=Math.cos(e.patternTimer*.04)*3;e.y+=e.vy*.5+Math.sin(e.patternTimer*.05)*.5;break;
+    }
+    if(e.y>H+60) e.dead=true;
+
+    // إطلاق النار
+    if(e.fire&&G.tick%60===0&&Math.random()<.3&&e.y>0){
+      const dx=G.player.x-e.x,dy=G.player.y-e.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      G.enemyBullets.push({x:e.x,y:e.y,vx:dx/dist*3,vy:dy/dist*3,r:5,color:"#ef4444"});
+    }
+
+    // اصطدام بالاعب
+    const p=G.player;
+    if(!p.invincible&&Math.abs(e.x-p.x)<(e.w/2+p.w/2-10)&&Math.abs(e.y-p.y)<(e.h/2+p.h/2-10)){
+      if(p.shield){p.shield=false;e.dead=true;spawnHitParticles(e.x,e.y,"#06b6d4",8);return;}
+      e.dead=true;damagePlayer();
+    }
+  });
+  G.enemies=G.enemies.filter(e=>!e.dead);
+}
+
+function updateBoss(){
+  if(!G.bossActive||!G.boss) return;
+  const boss=G.boss;
+  boss.angle+=.01;
+  boss.patternTimer++;
+
+  // حركة البوس
+  boss.x+=boss.vx;
+  boss.y=Math.min(boss.y+boss.vy,120);
+  if(boss.x<60||boss.x>W-60) boss.vx*=-1;
+
+  // أنماط هجوم البوس
+  boss.fireTimer++;
+  const fireRate=boss.hp<boss.maxHp*.5?30:50;
+  if(boss.fireTimer>fireRate){
+    boss.fireTimer=0;
+    const phase=boss.hp<boss.maxHp*.3?3:boss.hp<boss.maxHp*.6?2:1;
+    // مروحة من الرصاص
+    const bullets=phase===1?3:phase===2?5:8;
+    for(let i=0;i<bullets;i++){
+      const angle=-Math.PI/2+(i-(bullets-1)/2)*(Math.PI/4);
+      G.enemyBullets.push({x:boss.x,y:boss.y+boss.h/2,vx:Math.cos(angle)*4,vy:Math.sin(angle)*4+2,r:7,color:"#f43f5e"});
+    }
+  }
+}
+
+function updateParticles(){
+  G.particles=G.particles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.life--;p.vy+=.05;p.r*=.95;
+    return p.life>0&&p.r>.3;
+  });
+}
+
+function updateCrystals(){
+  G.crystals=G.crystals.filter(c=>{
+    c.y+=c.vy;c.angle+=.05;
+    // جذب نحو اللاعب إذا قريب
+    const dx=G.player.x-c.x,dy=G.player.y-c.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<80){c.vx+=dx/dist*.3;c.vy+=dy/dist*.3;}
+    c.vx*=.95;c.vy*=.95;
+    // اصطدام باللاعب
+    if(dist<25){collectCrystal(c);return false;}
+    return c.y<H+20;
+  });
+}
+
+function collectCrystal(c){
+  G.score+=c.pts;G.totalPoints+=c.pts;
+  notify("+"+c.pts+" ⭐",false);
+  spawnHitParticles(c.x,c.y,"#f59e0b",8);
+  savePoints(c.pts);
+  updateHUD();
+}
+
+function updateRescue(){
+  if(G.missionType!=="rescue") return;
+  G.rescueTargets.forEach(t=>{
+    if(t.saved) return;
+    t.angle+=.05;
+    const dx=G.player.x-t.x,dy=G.player.y-t.y;
+    if(Math.sqrt(dx*dx+dy*dy)<35){
+      t.saved=true;
+      spawnHitParticles(t.x,t.y,"#10b981",12);
+      G.score+=50;G.totalPoints+=50;
+      savePoints(50);
+      notify("روبوت تم إنقاذه! +50 ⭐");
+      updateHUD();
+    }
+  });
+}
+
+function updateSurvival(){
+  if(G.missionType!=="survival") return;
+  if(G.tick%60===0&&G.survivalTimer>0) G.survivalTimer--;
+  if(G.survivalTimer<=0&&!G.missionDone){
+    G.missionDone=true;
+    completeWave();
+  }
+  // تحديث شريط المهمة
+  if(G.tick%30===0&&G.survivalTimer>0){
+    document.getElementById("mission-banner").textContent="⏱ البقاء: "+G.survivalTimer+"ث";
+    document.getElementById("mission-banner").style.display="block";
+  }
+}
+
+function checkWaveComplete(){
+  if(G.missionDone) return;
+  if(G.missionType==="combat"&&G.enemies.length===0&&!G.bossActive){
+    G.missionDone=true;completeWave();
+  }
+  if(G.missionType==="rescue"){
+    const allSaved=G.rescueTargets.every(t=>t.saved);
+    if(allSaved&&G.enemies.length===0){G.missionDone=true;completeWave();}
+  }
+  if(G.missionType==="boss"&&!G.bossActive&&G.boss===null&&G.enemies.length===0){
+    G.missionDone=true;completeWave();
+  }
+}
+
+function completeWave(){
+  const bonus=G.wave*25;
+  G.score+=bonus;G.totalPoints+=bonus;
+  savePoints(bonus);
+  updateHUD();
+  if(G.wave>=G.maxWaves){
+    // فوز!
+    setTimeout(()=>showVictory(),1000);
+  } else {
+    G.wave++;
+    setTimeout(()=>{
+      G.missionDone=false;
+      G.boss=null;G.bossActive=false;
+      G.enemies=[];G.enemyBullets=[];G.crystals=[];
+      G.rescueTargets=[];
+      updateHUD();
+      // سؤال بين الموجات
+      if(Math.random()<.7) showQuiz();
+      else startMission();
+    },2000);
+    notify("موجة مكتملة! +"+bonus+" ⭐ 🎉");
+  }
+}
+
+// ══════════════════════════════════════════════
+//  تأثيرات
+// ══════════════════════════════════════════════
+function spawnHitParticles(x,y,color,count){
+  for(let i=0;i<count;i++){
+    const angle=Math.random()*Math.PI*2;
+    const speed=Math.random()*4+1;
+    G.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:Math.random()*4+2,color,life:Math.random()*20+15});
+  }
+}
+
+function spawnExplosion(x,y,size=1){
+  for(let i=0;i<20*size;i++){
+    const angle=Math.random()*Math.PI*2;
+    const speed=Math.random()*6*size+2;
+    const colors=["#f59e0b","#ef4444","#f97316","#fbbf24","#fff"];
+    G.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:Math.random()*6*size+2,color:colors[Math.floor(Math.random()*colors.length)],life:Math.random()*30+20});
+  }
+}
+
+// ══════════════════════════════════════════════
+//  الرسم
+// ══════════════════════════════════════════════
+function render(){
+  // خلفية الفضاء
+  ctx.fillStyle="#050010";ctx.fillRect(0,0,W,H);
+
+  // نجوم
+  G.stars.forEach(s=>{
+    ctx.fillStyle=`rgba(255,255,255,${.3+.7*Math.abs(Math.sin(G.tick*.015+s.x))})`;
+    ctx.beginPath();ctx.arc(s.x,s.y,s.s,0,Math.PI*2);ctx.fill();
+  });
+
+  // سُدم ملونة خلفية
+  drawNebula();
+
+  // بلورات
+  drawCrystals();
+
+  // أهداف الإنقاذ
+  drawRescueTargets();
+
+  // رصاص الأعداء
+  G.enemyBullets.forEach(b=>{
+    ctx.shadowColor=b.color;ctx.shadowBlur=10;
+    ctx.fillStyle=b.color;
+    ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+  });
+
+  // الأعداء
+  G.enemies.forEach(e=>drawEnemy(e));
+
+  // البوس
+  if(G.bossActive&&G.boss) drawBoss();
+
+  // رصاص اللاعب
+  G.bullets.forEach(b=>{
+    ctx.shadowColor=b.color||"#a855f7";ctx.shadowBlur=15;
+    ctx.fillStyle=b.color||"#a855f7";
+    if(b.type==="missile"){
+      ctx.font="20px serif";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText("🚀",b.x,b.y);
+    } else {
+      const grad=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+      grad.addColorStop(0,"#fff");grad.addColorStop(1,b.color||"#a855f7");
+      ctx.fillStyle=grad;
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    }
+    ctx.shadowBlur=0;
+  });
+
+  // اللاعب
+  drawPlayer();
+
+  // جزيئات
+  G.particles.forEach(p=>{
+    ctx.globalAlpha=p.life/35;
+    ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // شريط حياة البوس
+  if(G.bossActive&&G.boss) drawBossBar();
+}
+
+function drawNebula(){
+  const t=G.tick*.002;
+  const nebulas=[
+    {x:W*.2,y:H*.3,c:"rgba(124,58,237,.06)"},
+    {x:W*.8,y:H*.6,c:"rgba(6,182,212,.05)"},
+    {x:W*.5,y:H*.1,c:"rgba(244,63,94,.04)"},
+  ];
+  nebulas.forEach(n=>{
+    const grad=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,180);
+    grad.addColorStop(0,n.c);grad.addColorStop(1,"transparent");
+    ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+  });
+}
+
+function drawPlayer(){
+  const p=G.player;
+  ctx.save();ctx.translate(p.x,p.y);
+
+  // درع
+  if(p.shield){
+    ctx.strokeStyle=`rgba(6,182,212,${.5+.5*Math.sin(G.tick*.15)})`;
+    ctx.lineWidth=3;ctx.shadowColor="#06b6d4";ctx.shadowBlur=20;
+    ctx.beginPath();ctx.arc(0,0,32,0,Math.PI*2);ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
+  // وميض عند الضرر
+  if(p.invincible&&G.tick%6<3){ctx.restore();return;}
+
+  // جسم الروبوت
+  const bc=G.owned.upgrades.includes("armor")?"#06b6d4":"#7c3aed";
+
+  // أقدام صاروخية
+  ctx.fillStyle="#4c1d95";
+  ctx.fillRect(-8,16,6,14);ctx.fillRect(2,16,6,14);
+  ctx.fillStyle="#f59e0b";
+  ctx.fillRect(-8,28,6,4);ctx.fillRect(2,28,6,4);
+  // لهب الصاروخ
+  if(joyActive||G.tick%4<2){
+    ctx.fillStyle=`rgba(251,146,60,${.7+.3*Math.random()})`;
+    ctx.beginPath();ctx.ellipse(-5,36,4,8+Math.random()*4,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(5,36,4,8+Math.random()*4,0,0,Math.PI*2);ctx.fill();
+  }
+
+  // جسم
+  ctx.fillStyle=bc;
+  ctx.shadowColor=bc;ctx.shadowBlur=10;
+  roundRect2(-18,-18,36,36,7);ctx.fill();
+  ctx.shadowBlur=0;
+
+  // بريق
+  const grad=ctx.createLinearGradient(-18,-18,18,18);
+  grad.addColorStop(0,"rgba(255,255,255,.2)");grad.addColorStop(1,"rgba(0,0,0,.2)");
+  ctx.fillStyle=grad;roundRect2(-18,-18,36,36,7);ctx.fill();
+
+  // رأس
+  ctx.fillStyle=bc;ctx.shadowColor=bc;ctx.shadowBlur=8;
+  roundRect2(-14,-34,28,18,6);ctx.fill();ctx.shadowBlur=0;
+
+  // عيون
+  ctx.fillStyle="#0a0118";
+  ctx.beginPath();ctx.arc(-6,-26,4,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(6,-26,4,0,Math.PI*2);ctx.fill();
+  const eyeC=G.tick%40<20?"#06b6d4":"#a855f7";
+  ctx.fillStyle=eyeC;ctx.shadowColor=eyeC;ctx.shadowBlur=6;
+  ctx.beginPath();ctx.arc(-6,-26,2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(6,-26,2,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+
+  // أذرع
+  ctx.fillStyle=bc;
+  roundRect2(-26,-10,8,20,4);ctx.fill();
+  roundRect2(18,-10,8,20,4);ctx.fill();
+
+  // سلاح (يسار)
+  const weaponEmoji={laser:"⚡",laser2:"⚡⚡",missile:"🚀",plasma:"💜"};
+  ctx.font="14px serif";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(weaponEmoji[G.player.weapon]||"⚡",-26,0);
+
+  // هوائي
+  ctx.strokeStyle=bc;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,-34);ctx.lineTo(0,-44);ctx.stroke();
+  ctx.fillStyle="#f59e0b";ctx.shadowColor="#f59e0b";ctx.shadowBlur=8;
+  ctx.beginPath();ctx.arc(0,-46,4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+
+  ctx.restore();
+}
+
+function drawEnemy(e){
+  ctx.save();ctx.translate(e.x,e.y);
+  if(e.spin) ctx.rotate(e.angle);
+
+  // ظل
+  ctx.fillStyle="rgba(0,0,0,.3)";ctx.beginPath();ctx.ellipse(2,4,e.w/2,e.h/4,0,0,Math.PI*2);ctx.fill();
+
+  ctx.font=`${e.w}px serif`;ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(e.emoji,0,0);
+
+  // شريط الحياة
+  if(e.hp<e.maxHp){
+    const bw=e.w,bh=5,bx=-bw/2,by=-e.h/2-10;
+    ctx.fillStyle="rgba(0,0,0,.5)";ctx.fillRect(bx,by,bw,bh);
+    ctx.fillStyle=e.hp/e.maxHp>.5?"#10b981":"#ef4444";
+    ctx.fillRect(bx,by,bw*(e.hp/e.maxHp),bh);
+  }
+  ctx.restore();
+}
+
+function drawBoss(){
+  const b=G.boss;
+  ctx.save();ctx.translate(b.x,b.y);
+
+  // هالة
+  const grd=ctx.createRadialGradient(0,0,0,0,0,70);
+  grd.addColorStop(0,"rgba(244,63,94,.2)");grd.addColorStop(1,"transparent");
+  ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,70,0,Math.PI*2);ctx.fill();
+
+  // دروع
+  if(b.shieldActive){
+    for(let i=0;i<b.shields;i++){
+      const a=b.angle+i*(Math.PI*2/3);
+      ctx.strokeStyle=`rgba(6,182,212,${.6+.4*Math.sin(G.tick*.1+i)})`;
+      ctx.lineWidth=4;ctx.shadowColor="#06b6d4";ctx.shadowBlur=15;
+      ctx.beginPath();ctx.arc(Math.cos(a)*55,Math.sin(a)*55,18,0,Math.PI*2);ctx.stroke();
+    }
+    ctx.shadowBlur=0;
+  }
+
+  // جسم البوس
+  ctx.rotate(Math.sin(b.angle)*.05);
+  ctx.font="80px serif";ctx.textAlign="center";ctx.textBaseline="middle";
+  const phase=b.hp<b.maxHp*.3?"😡":b.hp<b.maxHp*.6?"😤":"👾";
+  ctx.fillText(phase,0,0);
+
+  // زخارف
+  for(let i=0;i<4;i++){
+    const a=b.angle*2+i*Math.PI/2;
+    ctx.font="20px serif";
+    ctx.fillText("🛸",Math.cos(a)*50,Math.sin(a)*50);
+  }
+
+  ctx.restore();
+}
+
+function drawBossBar(){
+  const b=G.boss;
+  const bw=Math.min(W*.7,300),bh=14,bx=(W-bw)/2,by=55;
+  ctx.fillStyle="rgba(0,0,0,.5)";roundRect2(bx-2,by-2,bw+4,bh+4,8);ctx.fill();
+  const prog=b.hp/b.maxHp;
+  const c=prog>.6?"#ef4444":prog>.3?"#f59e0b":"#a855f7";
+  ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=10;
+  roundRect2(bx,by,bw*prog,bh,6);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle="#f1e8ff";ctx.font="700 11px Cairo";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText("👾 المركبة الأم — "+b.hp+"/"+b.maxHp,W/2,by+bh/2);
+}
+
+function drawCrystals(){
+  G.crystals.forEach(c=>{
+    ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.angle);
+    ctx.shadowColor="#f59e0b";ctx.shadowBlur=12;
+    ctx.font="22px serif";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText("💎",0,0);
+    ctx.shadowBlur=0;ctx.restore();
+  });
+}
+
+function drawRescueTargets(){
+  G.rescueTargets.forEach(t=>{
+    if(t.saved) return;
+    ctx.save();ctx.translate(t.x,t.y);ctx.rotate(t.angle);
+    ctx.font="32px serif";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText("🤖",0,0);
+    // إشارة SOS
+    ctx.fillStyle=`rgba(239,68,68,${.5+.5*Math.sin(G.tick*.1)})`;
+    ctx.font="700 10px Cairo";ctx.fillText("SOS",0,-24);
+    ctx.restore();
+  });
+}
+
+function roundRect2(x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+
+// ══════════════════════════════════════════════
+//  أحداث اللاعب
+// ══════════════════════════════════════════════
+function playerFire(){
+  const p=G.player;
+  if(Date.now()-p.lastFire<p.fireRate) return;
+  p.lastFire=Date.now();
+  const wp=p.weapon;
+
+  if(wp==="laser"||wp==="laser2"){
+    G.bullets.push({x:p.x,y:p.y-25,vx:0,vy:-9,r:5,color:"#a855f7",dmg:1});
+    if(wp==="laser2"){
+      G.bullets.push({x:p.x-10,y:p.y-20,vx:-.5,vy:-9,r:5,color:"#06b6d4",dmg:1});
+      G.bullets.push({x:p.x+10,y:p.y-20,vx:.5,vy:-9,r:5,color:"#06b6d4",dmg:1});
+    }
+  } else if(wp==="missile"){
+    G.bullets.push({x:p.x,y:p.y-25,vx:0,vy:-7,r:10,color:"#f59e0b",dmg:3,type:"missile"});
+  } else if(wp==="plasma"){
+    G.bullets.push({x:p.x,y:p.y-25,vx:0,vy:-8,r:12,color:"#f43f5e",dmg:5});
+    G.bullets.push({x:p.x-15,y:p.y-15,vx:-1,vy:-8,r:10,color:"#a855f7",dmg:3});
+    G.bullets.push({x:p.x+15,y:p.y-15,vx:1,vy:-8,r:10,color:"#a855f7",dmg:3});
+  }
+}
+
+function useBomb(){
+  if(G.player.bombs<=0){notify("لا توجد قنابل!",true);return;}
+  G.player.bombs--;
+  // دمار شامل
+  G.enemies.forEach(e=>{spawnExplosion(e.x,e.y,1.5);e.hp=0;e.dead=true;});
+  G.enemies=[];
+  if(G.bossActive&&G.boss) G.boss.hp=Math.max(G.boss.hp-15,1);
+  G.enemyBullets=[];
+  notify("💣 قنبلة! كل الأعداء تدمرت!");
+  updateHUD();
+}
+
+function killEnemy(e){
+  e.dead=true;
+  spawnExplosion(e.x,e.y);
+  G.score+=e.pts;G.totalPoints+=e.pts;
+  savePoints(e.pts);
+  // إسقاط بلورة أحياناً
+  if(Math.random()<.35) G.crystals.push({x:e.x,y:e.y,vx:(Math.random()-.5)*.5,vy:.5,angle:0,pts:Math.ceil(e.pts/2)});
+  updateHUD();
+}
+
+function killBoss(){
+  spawnExplosion(G.boss.x,G.boss.y,3);
+  const bonus=200+G.wave*50;
+  G.score+=bonus;G.totalPoints+=bonus;
+  savePoints(bonus);
+  G.boss=null;G.bossActive=false;
+  notify("👾 المركبة الأم دُمرت! +"+bonus+" ⭐ 🏆");
+  updateHUD();
+  setTimeout(()=>completeWave(),1500);
+}
+
+function damagePlayer(){
+  G.player.hp--;
+  G.player.invincible=true;G.player.invTimer=120;
+  spawnHitParticles(G.player.x,G.player.y,"#ef4444",10);
+  updateHUD();
+  if(G.player.hp<=0) gameOver();
+}
+
+function gameOver(){
+  G.running=false;G.gameOver=true;
+  showMsg("💥 انتهت اللعبة!","وصلت إلى موجة "+G.wave+" وجمعت "+G.score+" نقطة",
+    [{text:"🔄 العب مجدداً",fn:"startGame()"},
+     {text:"← المنصة",fn:"location.href='index.html'"}]);
+}
+
+function showVictory(){
+  G.running=false;
+  const bonus=100;G.score+=bonus;G.totalPoints+=bonus;savePoints(bonus);
+  showMsg("🏆 انتصار مجيد!","هزمت كل الموجات وجمعت "+G.score+" نقطة!\n+"+bonus+" مكافأة!",
+    [{text:"🔄 العب مجدداً",fn:"startGame()"},
+     {text:"← المنصة",fn:"location.href='index.html'"}]);
+}
+
+// ══════════════════════════════════════════════
+//  الأسئلة
+// ══════════════════════════════════════════════
+let currentQ=null,quizTimerVal=15;
+let quizTimerInt=null;
+
+function showQuiz(){
+  if(G.quizActive) return;
+  G.quizActive=true;
+  G.paused=true;
+  currentQ=QUESTIONS[Math.floor(Math.random()*QUESTIONS.length)];
+  quizTimerVal=15;
+  document.getElementById("quiz-q").textContent=currentQ.q;
+  const opts=document.getElementById("quiz-opts");
+  opts.innerHTML="";
+  currentQ.o.forEach((o,i)=>{
+    const btn=document.createElement("button");
+    btn.className="quiz-opt";btn.textContent=["أ","ب","ج","د"][i]+". "+o;
+    btn.onclick=()=>answerQuiz(i,btn);
+    opts.appendChild(btn);
+  });
+  document.getElementById("quiz-panel").style.display="block";
+  document.getElementById("quiz-timer").textContent=quizTimerVal;
+  quizTimerInt=setInterval(()=>{
+    quizTimerVal--;
+    document.getElementById("quiz-timer").textContent=quizTimerVal;
+    if(quizTimerVal<=0){clearInterval(quizTimerInt);closeQuiz(false);}
+  },1000);
+}
+
+function answerQuiz(i,btn){
+  clearInterval(quizTimerInt);
+  const correct=i===currentQ.a;
+  document.querySelectorAll(".quiz-opt").forEach((b,j)=>{
+    if(j===currentQ.a) b.classList.add("correct");
+    else if(j===i) b.classList.add("wrong");
+    b.onclick=null;
+  });
+  if(correct){
+    G.score+=currentQ.pts;G.totalPoints+=currentQ.pts;
+    savePoints(currentQ.pts);
+    // مكافأة في اللعبة
+    G.player.bombs=Math.min(G.player.bombs+1,5);
+    G.player.hp=Math.min(G.player.hp+1,G.player.maxHp);
+    notify("✅ صحيح! +"+currentQ.pts+"⭐ +قنبلة +حياة!");
+    updateHUD();
+  } else {
+    notify("❌ خطأ! الإجابة: "+currentQ.o[currentQ.a],true);
+  }
+  setTimeout(()=>closeQuiz(true),1500);
+}
+
+function closeQuiz(proceed){
+  document.getElementById("quiz-panel").style.display="none";
+  G.quizActive=false;G.paused=false;
+  if(proceed) startMission();
+}
+
+function updateQuizTimer(){}
+
+// ══════════════════════════════════════════════
+//  المتجر
+// ══════════════════════════════════════════════
+function openShop(){
+  G.paused=true;
+  renderShop();
+  document.getElementById("shop-panel").style.display="block";
+}
+
+function closeShop(){
+  document.getElementById("shop-panel").style.display="none";
+  G.paused=false;
+}
+
+function renderShop(){
+  document.getElementById("shop-pts").textContent=G.score;
+  const grid=document.getElementById("shop-grid");
+  grid.innerHTML="";
+  SHOP_ITEMS.forEach(item=>{
+    const owned=G.owned.weapons?.includes(item.id)||G.owned.upgrades?.includes(item.id);
+    const equipped=G.equipped.weapon===item.id;
+    const div=document.createElement("div");
+    div.className="shop-item"+(owned?" owned":"")+(equipped?" equipped":"");
+    div.innerHTML=`<div class="si-icon">${item.icon}</div>
+      <div class="si-name">${item.name}</div>
+      <div style="color:#9d8ab5;font-size:.72rem;margin:2px 0">${item.desc}</div>
+      <div class="si-price">${owned?(equipped?"✅ مجهز":"✓ مملوك"):(item.price+" ⭐")}</div>`;
+    div.onclick=()=>buyItem(item);
+    grid.appendChild(div);
+  });
+}
+
+function buyItem(item){
+  const owned=G.owned.weapons?.includes(item.id)||G.owned.upgrades?.includes(item.id);
+  if(owned){
+    // تجهيز السلاح
+    if(item.type==="weapon"){G.equipped.weapon=item.id;applyWeapon(item.id);notify("تم تجهيز: "+item.name);saveEquipped();}
+    else if(item.type==="upgrade") applyUpgrade(item.id);
+    renderShop();return;
+  }
+  if(G.score<item.price){notify("نقاطك غير كافية! تحتاج "+item.price+" ⭐",true);return;}
+  G.score-=item.price;
+  if(item.type==="weapon") G.owned.weapons=[...(G.owned.weapons||[]),item.id];
+  else G.owned.upgrades=[...(G.owned.upgrades||[]),item.id];
+  applyUpgrade(item.id);
+  if(item.type==="weapon"){G.equipped.weapon=item.id;applyWeapon(item.id);}
+  notify("تم شراء: "+item.name+" 🎉");
+  saveOwned();
+  renderShop();
+  updateHUD();
+}
+
+function applyUpgrade(id){
+  if(id==="shield"){G.player.shield=true;G.player.shieldTimer=600;}
+  else if(id==="hp_up"){G.player.maxHp++;G.player.hp=Math.min(G.player.hp+1,G.player.maxHp);}
+  else if(id==="bomb_up"){G.player.bombs+=2;}
+  else if(id==="speed_up"){G.player.speed=Math.min(G.player.speed+1,9);}
+  else if(id==="fire_up"){G.player.fireRate=Math.max(G.player.fireRate-80,150);}
+  updateHUD();
+}
+
+// ══════════════════════════════════════════════
+//  Joystick
+// ══════════════════════════════════════════════
+let joyActive=false,joyDx=0,joyDy=0,joyId=null;
+const jZone=document.getElementById("joystick-zone");
+const jKnob=document.getElementById("joystick-knob");
+
+jZone.addEventListener("touchstart",e=>{
+  e.preventDefault();
+  const t=e.touches[0];
+  joyId=t.identifier;joyActive=true;
+},{passive:false});
+
+window.addEventListener("touchmove",e=>{
+  for(const t of e.touches){
+    if(t.identifier===joyId){
+      const r=jZone.getBoundingClientRect();
+      const cx=r.left+60,cy=r.top+60;
+      let dx=t.clientX-cx,dy=t.clientY-cy;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      const max=45;
+      if(dist>max){dx=dx/dist*max;dy=dy/dist*max;}
+      joyDx=dx/max;joyDy=dy/max;
+      jKnob.style.left=(35+dx)+"px";jKnob.style.top=(35+dy)+"px";
+      return;
+    }
+  }
+},{passive:false});
+
+window.addEventListener("touchend",e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===joyId){
+      joyActive=false;joyDx=0;joyDy=0;
+      jKnob.style.left="35px";jKnob.style.top="35px";
+      joyId=null;return;
+    }
+  }
+});
+
+// كيبورد (للحاسب)
+const keys={};
+window.addEventListener("keydown",e=>{
+  keys[e.key]=true;
+  if(e.key===" "){playerFire();}
+  if(e.key==="b"||e.key==="B"){useBomb();}
+});
+window.addEventListener("keyup",e=>delete keys[e.key]);
+setInterval(()=>{
+  if(!G.running||G.paused) return;
+  const p=G.player;
+  if(keys["ArrowLeft"]||keys["a"]){p.x-=p.speed;joyActive=true;joyDx=-1;joyDy=0;}
+  else if(keys["ArrowRight"]||keys["d"]){p.x+=p.speed;joyActive=true;joyDx=1;joyDy=0;}
+  else if(keys["ArrowUp"]||keys["w"]){p.y-=p.speed;joyActive=true;joyDx=0;joyDy=-1;}
+  else if(keys["ArrowDown"]||keys["s"]){p.y+=p.speed;joyActive=true;joyDx=0;joyDy=1;}
+  else joyActive=false;
+},1000/60);
+
+// ══════════════════════════════════════════════
+//  مساعدات UI
+// ══════════════════════════════════════════════
+function showMsg(title,sub,btns){
+  document.getElementById("msg-title").textContent=title;
+  document.getElementById("msg-sub").textContent=sub;
+  const c=document.getElementById("msg-btns");c.innerHTML="";
+  btns.forEach(b=>{
+    const btn=document.createElement("button");
+    btn.className="msg-btn";btn.textContent=b.text;
+    btn.onclick=new Function(b.fn);
+    c.appendChild(btn);
+  });
+  document.getElementById("msg-overlay").style.display="flex";
+}
+
+function hideMsg(){document.getElementById("msg-overlay").style.display="none";}
+
+let notifTimer=null;
+function notify(msg,isErr=false){
+  const n=document.getElementById("notif");
+  n.textContent=msg;n.className=isErr?"err":"";
+  n.style.display="block";
+  if(notifTimer) clearTimeout(notifTimer);
+  notifTimer=setTimeout(()=>n.style.display="none",2500);
+}
+
+function pauseGame(){G.paused=!G.paused;}
+
+// ══════════════════════════════════════════════
+//  Firebase حفظ
+// ══════════════════════════════════════════════
+let saveQueue=0;
+async function savePoints(pts){
+  if(!G.uid) return;
+  saveQueue+=pts;
+  clearTimeout(savePoints._t);
+  savePoints._t=setTimeout(async()=>{
+    const toSave=saveQueue;saveQueue=0;
+    try{
+      await db.collection("users").doc(G.uid).update({points:FS.increment(toSave)});
+      if(G.userData?.classId){
+        await db.collection("classrooms").doc(G.userData.classId).collection("students").doc(G.uid).update({points:FS.increment(toSave)});
+      }
+    }catch(e){}
+  },2000);
+}
+
+async function saveOwned(){
+  if(!G.uid) return;
+  try{await db.collection("users").doc(G.uid).update({gameOwned:G.owned});}catch(e){}
+}
+async function saveEquipped(){
+  if(!G.uid) return;
+  try{await db.collection("users").doc(G.uid).update({gameEquipped:G.equipped});}catch(e){}
+}
+
+// CSS animation
+const style=document.createElement("style");
+style.textContent="@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}";
+document.head.appendChild(style);
+</script>
+</body>
+</html>
